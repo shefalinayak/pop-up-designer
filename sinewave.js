@@ -6,85 +6,113 @@ var page = new Path.Rectangle(new Point(0,0),new Size(w,h));
 page.fillColor = 'whitesmoke';
 page.strokeColor = 'black';
 
-var gutter = new Path.Line(new Point(0,h/2),new Point(w,h/2));
-gutter.strokeColor = 'pink';
+var gutter = h/2;
 
-var sineWave = new Path();
+var gutterLine = new Path.Line(new Point(0,gutter),new Point(w,gutter));
+gutterLine.strokeColor = 'pink';
 
-var numSegments = 20;
+var numSegments = 25;
 var margin = 1;
 var distFromGutter = 2.5;
-var amplitude = 1;
 var stripLength = 5;
 
 margin *= pxPerInch;
 distFromGutter *= pxPerInch;
-amplitude *= pxPerInch;
 stripLength *= pxPerInch;
 
 var waveWidth = w - (2*margin);
-for (var i = 0; i <= numSegments; i++) {
-  var x = margin + (waveWidth * i / numSegments);
-  var y = amplitude * Math.sin(2*Math.PI*i/numSegments);
-  y += h/2 - distFromGutter;
-  sineWave.add(new Point(x,y));
-}
-sineWave.strokeColor = 'red';
 
-var disjointSineWaveTop = [];
-var disjointSineWaveMiddle = [];
-var disjointSineWaveBottom = [];
-var segVector = new Point(waveWidth / numSegments,0);
-
-for (var i = 0; i < numSegments; i++) {
-  var startPt = sineWave.segments[i].point;
-  var heightFromGutter = h/2 - startPt.y;
-  var segTop = new Path.Line(startPt, startPt + segVector);
-  segTop.strokeColor = 'blue';
-  var segBottom = segTop.clone();
-  segBottom.translate(0,stripLength);
-  var segMiddle = segTop.clone();
-  segMiddle.translate(0,stripLength-heightFromGutter);
-  segMiddle.strokeColor = 'red';
-  disjointSineWaveTop.push(segTop);
-  disjointSineWaveBottom.push(segBottom);
-  disjointSineWaveMiddle.push(segMiddle);
+function makeCurve(curveFunction) {
+  var myCurve = new Path();
+  for (var i = 0; i <= numSegments; i++) {
+    var x = margin + (waveWidth * i / numSegments);
+    var y = gutter + curveFunction(i,numSegments);
+    myCurve.add(new Point(x,y));
+  }
+  myCurve.strokeColor = 'pink';
+  return myCurve;
 }
 
-var cuts = [];
+function sine(i,numSegments) {
+  var amplitude_px = 1 * pxPerInch;
+  return amplitude_px * Math.sin(2 * Math.PI * i / numSegments);
+}
 
-var cutline = new Path.Line(
-  disjointSineWaveTop[0].firstSegment.point,
-  disjointSineWaveBottom[0].firstSegment.point);
-cutline.strokeColor = '#00ff00';
-cuts.push(cutline);
+function cosine(i,numSegments) {
+  var amplitude_px = 1 * pxPerInch;
+  return amplitude_px * Math.cos(2 * Math.PI * i / numSegments);
+}
 
-for (var i = 1; i < numSegments; i++) {
-  var topLeft = disjointSineWaveTop[i-1].lastSegment.point;
-  var topRight = disjointSineWaveTop[i].firstSegment.point;
-  var bottomLeft = disjointSineWaveBottom[i-1].lastSegment.point;
-  var bottomRight = disjointSineWaveBottom[i].firstSegment.point;
-  var top = (topLeft.y < topRight.y) ? topLeft : topRight;
-  var bottom = (bottomLeft.y > bottomRight.y) ? bottomLeft : bottomRight;
-  cutline = new Path.Line(top,bottom);
+function approximate(curve,displacement) {
+  var disjoint = [];
+  var segments = curve.segments;
+  var segmentDist = new Point(waveWidth / numSegments,0);
+  for (var i = 0; i < numSegments; i++) {
+    var startPt = curve.segments[i].point.clone() + displacement;
+    var seg = new Path.Line(startPt,startPt + segmentDist);
+    seg.strokeColor = 'blue';
+    disjoint.push(seg);
+  }
+  return disjoint;
+}
+
+function calculateMidlines(segsTop, segsBottom) {
+  var disjointMiddle = [];
+  for (var i = 0; i < numSegments; i++) {
+    var gutterToTop = segsTop[i].firstSegment.point.y - gutter;
+    var midSeg = segsBottom[i].clone();
+    midSeg.translate(0,gutterToTop);
+    midSeg.strokeColor = 'red';
+    disjointMiddle.push(midSeg);
+  }
+  return disjointMiddle;
+}
+
+function calculateCutlines(segsTop, segsBottom) {
+  var cuts = [];
+
+  var cutline = new Path.Line(
+    segsTop[0].firstSegment.point,
+    segsBottom[0].firstSegment.point);
   cutline.strokeColor = '#00ff00';
   cuts.push(cutline);
+
+  for (var i = 1; i < numSegments; i++) {
+    var topLeft = segsTop[i-1].lastSegment.point;
+    var topRight = segsTop[i].firstSegment.point;
+    var bottomLeft = segsBottom[i-1].lastSegment.point;
+    var bottomRight = segsBottom[i].firstSegment.point;
+    var top = (topLeft.y < topRight.y) ? topLeft : topRight;
+    var bottom = (bottomLeft.y > bottomRight.y) ? bottomLeft : bottomRight;
+    cutline = new Path.Line(top,bottom);
+    cutline.strokeColor = '#00ff00';
+    cuts.push(cutline);
+  }
+
+  cutline = new Path.Line(
+    segsTop[numSegments-1].lastSegment.point,
+    segsBottom[numSegments-1].lastSegment.point);
+  cutline.strokeColor = '#00ff00';
+  cuts.push(cutline);
+
+  return cuts;
 }
 
-cutline = new Path.Line(
-  disjointSineWaveTop[numSegments-1].lastSegment.point,
-  disjointSineWaveBottom[numSegments-1].lastSegment.point);
-cutline.strokeColor = '#00ff00';
-cuts.push(cutline);
+var myCurve = makeCurve(cosine);
 
+var disjointTop = approximate(myCurve, new Point(0,-2.5*pxPerInch));
+var disjointBottom = approximate(myCurve, new Point(0,2.5*pxPerInch));
 
-gutterLeft = new Path.Line(new Point(0,h/2),new Point(margin,h/2));
+var disjointMiddle = calculateMidlines(disjointTop,disjointBottom);
+var cuts = calculateCutlines(disjointTop,disjointBottom);
+
+gutterLeft = new Path.Line(new Point(0,gutter),new Point(margin,gutter));
 gutterLeft.strokeColor = 'blue';
-gutterRight = new Path.Line(new Point(w-margin,h/2), new Point(w,h/2));
+gutterRight = new Path.Line(new Point(w-margin,gutter), new Point(w,gutter));
 gutterRight.strokeColor = 'blue';
 
-sineWave.remove();
-gutter.remove();
+gutterLine.remove();
+myCurve.remove();
 
 var exportOptions = {
   bounds: 'content',
