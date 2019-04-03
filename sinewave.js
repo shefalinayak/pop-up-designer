@@ -1,3 +1,5 @@
+console.log("hello hello");
+
 var pxPerInch = 72;
 var h = 11 * pxPerInch;
 var w = 8.5 * pxPerInch;
@@ -11,7 +13,7 @@ var gutter = h/2;
 var gutterLine = new Path.Line(new Point(0,gutter),new Point(w,gutter));
 gutterLine.strokeColor = 'pink';
 
-var numSegments = 25;
+var numSegments = 5;
 var margin = 1;
 var distFromGutter = 2.5;
 var stripLength = 5;
@@ -98,10 +100,11 @@ function calculateCutlines(segsTop, segsBottom) {
   return cuts;
 }
 
-var myCurve = makeCurve(cosine);
+var myCurveTop = makeCurve(sine);
+var myCurveBottom = makeCurve(cosine);
 
-var disjointTop = approximate(myCurve, new Point(0,-2.5*pxPerInch));
-var disjointBottom = approximate(myCurve, new Point(0,2.5*pxPerInch));
+var disjointTop = approximate(myCurveTop, new Point(0,-2.5*pxPerInch));
+var disjointBottom = approximate(myCurveBottom, new Point(0,2.5*pxPerInch));
 
 var disjointMiddle = calculateMidlines(disjointTop,disjointBottom);
 var cuts = calculateCutlines(disjointTop,disjointBottom);
@@ -112,7 +115,8 @@ gutterRight = new Path.Line(new Point(w-margin,gutter), new Point(w,gutter));
 gutterRight.strokeColor = 'blue';
 
 gutterLine.remove();
-myCurve.remove();
+//myCurveTop.remove();
+//myCurveBottom.remove();
 
 var exportOptions = {
   bounds: 'content',
